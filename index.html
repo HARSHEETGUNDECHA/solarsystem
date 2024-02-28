@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Solar System</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+        #controlPanel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1;
+        }
+        .planetControl {
+            margin-bottom: 5px;
+        }
+        .planetSpeed {
+            width: 50px;
+        }
+        #infoPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="controlPanel">
+        <h3>Controls</h3>
+        <div id="planetControls">
+            <!-- Planet checkboxes and speed controls will be added dynamically here -->
+        </div>
+    </div>
+    <div id="infoPanel">
+        <p id="hoverInfo"></p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a sun
+        var sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+        var sunTexture = new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/a/a4/Solarsystemscope_texture_8k_sun.jpg');
+        var sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
+        var sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        scene.add(sun);
+
+        // Create planets with textures and orbits
+        var loader = new THREE.TextureLoader();
+        var planets = [];
+        var orbitLines = [];
+        var planetData = [
+            { name: 'Mercury', radius: 0.5, distance: 5, speed: 0.02, texture: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/6e527eb9-99dc-4554-9ea2-dd0e84e79860/dcklc0u-feeae0dc-f164-436a-8e75-5c9a7f3e3c71.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcLzZlNTI3ZWI5LTk5ZGMtNDU1NC05ZWEyLWRkMGU4NGU3OTg2MFwvZGNrbGMwdS1mZWVhZTBkYy1mMTY0LTQzNmEtOGU3NS01YzlhN2YzZTNjNzEucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.Rvqb6JB7rcl6c5uQgEh-wIHbhNeqiIe7arbgKfBwAmY' },
+            { name: 'Venus', radius: 1, distance: 10, speed: 0.015, texture: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/ebbf2019-9330-43af-945d-d93d81bfadc7/dg4via3-7bde39bd-4a37-4fec-8f3d-69cdd28a3ebc.png/v1/fill/w_1280,h_640,q_80,strp/venus_texture_by_planetboiearth_dg4via3-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NjQwIiwicGF0aCI6IlwvZlwvZWJiZjIwMTktOTMzMC00M2FmLTk0NWQtZDkzZDgxYmZhZGM3XC9kZzR2aWEzLTdiZGUzOWJkLTRhMzctNGZlYy04ZjNkLTY5Y2RkMjhhM2ViYy5wbmciLCJ3aWR0aCI6Ijw9MTI4MCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.Uwx_XPXSbWeUfUUfY6hltnRxkp2gXblLKxB1O947IuQ' },
+            { name: 'Earth', radius: 1.2, distance: 15, speed: 0.01, texture: 'https://t4.ftcdn.net/jpg/02/24/14/81/360_F_224148194_xrGaLP6RZbCL7B3vOMYYr2dVrcg95RFt.jpg' },
+            { name: 'Mars', radius: 0.8, distance: 20, speed: 0.008, texture: 'data:image/jpeg;base64,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' }
+        ];
+
+        var planetControls = document.getElementById('planetControls');
+        for (var i = 0; i < planetData.length; i++) {
+            var planet = planetData[i];
+
+            // Checkbox for toggling planet visibility
+            var planetCheckbox = document.createElement('input');
+            planetCheckbox.type = 'checkbox';
+            planetCheckbox.checked = true;
+            planetCheckbox.id = 'togglePlanet' + i;
+            planetCheckbox.addEventListener('change', togglePlanet.bind(null, i));
+            planetControls.appendChild(planetCheckbox);
+
+            var planetLabel = document.createElement('label');
+            planetLabel.innerHTML = planet.name;
+            planetLabel.htmlFor = 'togglePlanet' + i;
+            planetControls.appendChild(planetLabel);
+
+            planetControls.appendChild(document.createElement('br'));
+
+            // Speed control for the planet
+            var speedInput = document.createElement('input');
+            speedInput.type = 'number';
+            speedInput.value = planet.speed;
+            speedInput.min = '0';
+            speedInput.step = '0.001';
+            speedInput.classList.add('planetSpeed');
+            speedInput.addEventListener('input', function(event) {
+                event.stopPropagation(); // Prevent the change event from bubbling up
+                changePlanetSpeed(i);
+            });
+            planetControls.appendChild(speedInput);
+
+            var speedLabel = document.createElement('label');
+            speedLabel.innerHTML = 'Speed';
+            planetControls.appendChild(speedLabel);
+
+            planetControls.appendChild(document.createElement('br'));
+
+            // Create planet mesh
+            var planetGeometry = new THREE.SphereGeometry(planet.radius, 32, 32);
+            var planetTexture = loader.load(planet.texture);
+            var planetMaterial = new THREE.MeshBasicMaterial({ map: planetTexture });
+            var planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
+            planetMesh.distance = planet.distance;
+            planetMesh.speed = planet.speed;
+            planetMesh.name = planet.name;
+            planets.push(planetMesh);
+            scene.add(planetMesh);
+
+            // Create orbit lines
+            var orbitGeometry = new THREE.BufferGeometry();
+            var vertices = [];
+            for (var j = 0; j <= 64; j++) {
+                var theta = (j / 64) * Math.PI * 2;
+                vertices.push(new THREE.Vector3(Math.cos(theta) * planet.distance, 0, Math.sin(theta) * planet.distance));
+            }
+            orbitGeometry.setFromPoints(vertices);
+            var orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+            var orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+            scene.add(orbitLine);
+            orbitLines.push(orbitLine);
+        }
+
+        // Set camera position
+        camera.position.set(0, 0, 30);
+
+        // Add orbit controls
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = true;
+
+        // Function to toggle planet visibility
+        function togglePlanet(index) {
+            planets[index].visible = document.getElementById('togglePlanet' + index).checked;
+        }
+
+        // Function to change planet speed
+        function changePlanetSpeed(index) {
+            var speedInput = document.querySelector('#planetControls .planetSpeed');
+            planets[index].speed = parseFloat(speedInput.value);
+        }
+
+        // Event listener for hover effect and info panel
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        document.addEventListener('mousemove', onMouseMove);
+
+        function onMouseMove(event) {
+            // Calculate mouse position in normalized device coordinates
+            // (-1 to +1) for both components
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+            // Cast a ray from the camera through the mouse position
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check if the ray intersects with any planet
+            var intersects = raycaster.intersectObjects(planets);
+            if (intersects.length > 0) {
+                var planet = intersects[0].object;
+                var planetIndex = planets.indexOf(planet);
+                var revolutionTime = (2 * Math.PI * planet.distance) / planet.speed;
+                document.getElementById('hoverInfo').textContent = planet.name + ': One revolution in ' + revolutionTime.toFixed(2) + ' seconds';
+                document.getElementById('infoPanel').style.display = 'block';
+            } else {
+                document.getElementById('infoPanel').style.display = 'none';
+            }
+        }
+
+        // Render the scene
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate planets around their own axes and around the sun
+            planets.forEach(function (planet) {
+                planet.rotation.y += planet.speed * 0.01; // Rotate around its own axis
+                var revolutionSpeed = planet.speed / 1000; // Convert speed to revolution speed
+                var theta = Date.now() * revolutionSpeed; // Angle for revolution
+                planet.position.x = Math.cos(theta) * planet.distance; // Calculate x position
+                planet.position.z = Math.sin(theta) * planet.distance; // Calculate z position
+            });
+
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+    </script>
+</body>
+</html>
