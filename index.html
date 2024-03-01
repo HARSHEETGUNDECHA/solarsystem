@@ -193,7 +193,7 @@
             // Rotate planets around their own axes and around the sun
             planets.forEach(function (planet) {
                 planet.rotation.y += planet.speed * 0.01; // Rotate around its own axis
-                var revolutionSpeed = planet.speed / 0.01; //  Convert speed to revolution speed
+                var revolutionSpeed = planet.speed / 250; //  Convert speed to revolution speed
                 var theta = Date.now() * revolutionSpeed; // Angle for revolution
                 planet.position.x = Math.cos(theta) * planet.distance; // Calculate x position
                 planet.position.z = Math.sin(theta) * planet.distance; // Calculate z position
